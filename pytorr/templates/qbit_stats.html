@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>qBittorrent Stats</title>
+</head>
+<body>
+<div style="width:50%;">
+  <canvas id="mycanvas"></canvas>
+</div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js" integrity="sha512-GMGzUEevhWh8Tc/njS0bDpwgxdCJLQBWG3Z2Ct+JGOpVnEmjvNx6ts4v6A2XJf1HOrtOsfhv3hBKpK9kE5z8AQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.0.0/chartjs-plugin-datalabels.min.js" integrity="sha512-R/QOHLpV1Ggq22vfDAWYOaMd5RopHrJNMxi8/lJu8Oihwi4Ho4BRFeiMiCefn9rasajKjnx9/fTQ/xkWnkDACg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+  // used for example purposes
+  function getRandomIntInclusive(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // create initial empty chart
+  var ctx_live = document.getElementById("mycanvas").getContext("2d");
+  var myChart = new Chart(ctx_live, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderWidth: 1,
+        borderColor:'rgb(200,151,90)',
+        label: 'Up Speed',
+        fill: true,
+        backgroundColor: 'rgba(200,151,90,0.5)',
+      },
+        {
+          data: [],
+          borderWidth: 1,
+          borderColor:'rgba(78,113,62)',
+          label: 'Down Speed',
+          fill: true,
+          backgroundColor: 'rgba(78,113,62,0.50)',
+        }]
+    },
+    options: {
+      responsive: true,
+      title: {
+        display: true,
+        text: "qBittorrent Up&Down speeds",
+      },
+      legend: {
+        display: false
+      },
+      scales: {
+        yAxes: [{
+          ticks: {
+            beginAtZero: true,
+          }
+        }]
+      }
+    },
+    // FIXME: Add datalabel with MiB value on each point
+    // showTooltips: false,
+    // onAnimationComplete: function () {
+    //
+    //     var ctx = this.myChart.ctx_live;
+    //     ctx.font = this.scale.font;
+    //     ctx.fillStyle = this.scale.textColor
+    //     ctx.textAlign = "center";
+    //     ctx.textBaseline = "bottom";
+    //
+    //     this.datasets.forEach(function (dataset) {
+    //         dataset.points.forEach(function (points) {
+    //             ctx.fillText(points.value, points.x, points.y - 10);
+    //         });
+    //     })
+    // }
+  });
+
+  // this post id drives the example data
+  var postId = 1;
+
+  // logic to get new data
+  var getData = function() {
+    $.ajax({
+      url: '/qbit_stats',
+      success: function(data) {
+        // process your data to pull out what you plan to use to update the chart
+        // e.g. new label and a new data point
+
+        var datasets = myChart.data.datasets;
+        var labels = myChart.data.labels;
+
+        var downloadDataSet = datasets[1].data;
+        var uploadDataSet = datasets[0].data;
+
+        var downloadDataLength = downloadDataSet.length;
+        var uploadDataLength = uploadDataSet.length;
+
+        var didRemoveData = false;
+        if (downloadDataLength > 20) {
+          downloadDataSet.shift();
+          didRemoveData = true;
+        }
+
+        if (uploadDataLength > 20) {
+          uploadDataSet.shift();
+          didRemoveData = true;
+        }
+
+        // if either download or upload data was removed, we also need to remove
+        // the first label to keep the data from squeezing in.
+        if (didRemoveData) {
+          labels.shift();
+        }
+
+        // re-render the chart
+        // labels.push(label);
+        // labels.push("Post " + postId++);
+        labels.push("");
+        downloadDataSet.push(data["dl_info_speed"] / 1049000);
+        uploadDataSet.push(data["up_info_speed"] / 1049000);
+        myChart.update();
+      },
+    });
+  };
+
+  // get new data every 3 seconds
+  setInterval(getData, 1000);
+</script>
+</html>
